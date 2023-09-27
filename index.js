@@ -4,65 +4,41 @@
 //                         Copyright: (c) 2020 Simon Schneegans                         //
 //////////////////////////////////////////////////////////////////////////////////////////
 
-import http from "node:https";
-
 import core from "@actions/core";
 import { makeBadge } from "badge-maker";
 
-// Performs an HTTP request and returns a Promise accordingly. See docs of
-// http.request() for the available options.
-function doRequest(options, data) {
-  return new Promise((resolve, reject) => {
-    const req = http.request(options, (res) => {
-      res.setEncoding("utf8");
-      let responseBody = "";
-
-      res.on("data", (chunk) => {
-        responseBody += chunk;
-      });
-
-      res.on("end", () => {
-        const { statusCode, statusMessage } = res;
-        resolve({ statusCode, statusMessage, body: responseBody });
-      });
-    });
-
-    req.on("error", (err) => {
-      reject(err);
-    });
-
-    req.write(data);
-    req.end();
-  });
-}
+const gistUrl = new URL(
+  core.getInput("gistID"),
+  "https://api.github.com/gists/"
+);
 
 // This uses the method above to update a gist with the given data. The user agent is
 // required as defined in https://developer.github.com/v3/#user-agent-required
-function updateGist(data) {
-  const updateGistOptions = {
-    host: "api.github.com",
-    path: "/gists/" + core.getInput("gistID"),
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": data.length,
-      "User-Agent": "Schneegans",
-      Authorization: "token " + core.getInput("auth"),
-    },
-  };
+async function updateGist(data) {
+  const headers = new Headers([
+    ["Content-Type", "application/json"],
+    ["Content-Length", data.length],
+    ["User-Agent", "runarberg"],
+    ["Authorization", `token ${core.getInput("auth")}`],
+  ]);
 
-  doRequest(updateGistOptions, data).then((res) => {
-    if (res.statusCode < 200 || res.statusCode >= 400) {
-      core.setFailed(
-        "Failed to create gist, response status code: " +
-          res.statusCode +
-          ", status message: " +
-          res.statusMessage
-      );
-    } else {
-      console.log("Success!");
-    }
+  const response = await fetch(gistUrl, {
+    method: "POST",
+    headers,
   });
+
+  if (!response.ok) {
+    core.setFailed(
+      "Failed to create gist, response status code: " +
+        res.statusCode +
+        ", status message: " +
+        res.statusMessage
+    );
+
+    return;
+  }
+
+  console.log("Success!");
 }
 
 // We wrap the entire action in a try / catch block so we can set it to "failed" if
@@ -71,7 +47,8 @@ try {
   // This object will be stringified and uploaded to the gist. The schemaVersion, label
   // and message attributes are always required. All others are optional and added to the
   // content object only if they are given to the action.
-  let content = {
+  let data = {
+    schemaVersion: 1,
     label: core.getInput("label"),
     message: core.getInput("message"),
   };
@@ -110,9 +87,9 @@ try {
       lig = parseFloat(colorRangeLightness);
     }
 
-    content.color = "hsl(" + hue + ", " + sat + "%, " + lig + "%)";
+    data.color = "hsl(" + hue + ", " + sat + "%, " + lig + "%)";
   } else if (color != "") {
-    content.color = color;
+    data.color = color;
   }
 
   // Get all optional attributes and add them to the content object if given.
@@ -128,110 +105,110 @@ try {
   const filename = core.getInput("filename");
 
   if (labelColor != "") {
-    content.labelColor = labelColor;
+    data.labelColor = labelColor;
   }
 
   if (isError != "") {
-    content.isError = isError;
+    data.isError = isError;
   }
 
   if (namedLogo != "") {
-    content.namedLogo = namedLogo;
+    data.namedLogo = namedLogo;
   }
 
   if (logoSvg != "") {
-    content.logoSvg = logoSvg;
+    data.logoSvg = logoSvg;
   }
 
   if (logoColor != "") {
-    content.logoColor = logoColor;
+    data.logoColor = logoColor;
   }
 
   if (logoWidth != "") {
-    content.logoWidth = parseInt(logoWidth);
+    data.logoWidth = parseInt(logoWidth);
   }
 
   if (logoPosition != "") {
-    content.logoPosition = logoPosition;
+    data.logoPosition = logoPosition;
   }
 
   if (style != "") {
-    content.style = style;
+    data.style = style;
   }
 
   if (cacheSeconds != "") {
-    content.cacheSeconds = parseInt(cacheSeconds);
+    data.cacheSeconds = parseInt(cacheSeconds);
   }
 
-  let body = "";
+  let content = "";
 
   if (filename.endsWith(".svg")) {
-    body = makeBadge(content);
+    content = makeBadge({
+      color: data.color,
+      message: data.message,
+      label: data.label,
+      labelColor: data.labelColor,
+      style: data.style,
+    });
   } else {
-    content.schemaVersion = 1;
-    body = JSON.stringify({ content });
+    content = JSON.stringify({ content: data });
   }
 
   // For the POST request, the above content is set as file contents for the
   // given filename.
-  const request = JSON.stringify({ files: { [filename]: { content: body } } });
+  const body = JSON.stringify({ files: { [filename]: { content } } });
 
   // If "forceUpdate" is set to true, we can simply update the gist. If not, we have to
   // get the gist data and compare it to the new value before.
   if (core.getBooleanInput("forceUpdate")) {
-    updateGist(request);
+    updateGist(body);
   } else {
     // Get the old gist.
-    const getGistOptions = {
-      host: "api.github.com",
-      path: "/gists/" + core.getInput("gistID"),
+    fetch(gistUrl, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Schneegans",
-        Authorization: "token " + core.getInput("auth"),
-      },
-    };
-
-    doRequest(getGistOptions, JSON.stringify({})).then((oldGist) => {
-      if (oldGist.statusCode < 200 || oldGist.statusCode >= 400) {
-        // print the error, but don't fail the action.
-        console.log(
-          "Failed to get gist, response status code: " +
-            oldGist.statusCode +
-            ", status message: " +
-            oldGist.statusMessage
-        );
-      }
-
-      let shouldUpdate = true;
-
-      if (
-        oldGist &&
-        oldGist.body &&
-        oldGist.body.files &&
-        oldGist.body.files[filename]
-      ) {
-        const oldContent = oldGist.body.files[filename].content;
-
-        if (oldContent === body) {
+      headers: new Headers([
+        ["Content-Type", "application/json"],
+        ["User-Agent", "runarberg"],
+        ["Authorization", `token ${core.getInput("auth")}`],
+      ]),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          // print the error, but don't fail the action.
           console.log(
-            `Content did not change, not updating gist at ${filename}.`
+            `Failed to get gist: ${response.status} ${response.statusText}`
           );
-          shouldUpdate = false;
-        }
-      }
+          response.text().then((text) => console.log(text));
 
-      if (shouldUpdate) {
-        if (oldGist.body.files[filename]) {
-          console.log(`Content changed, updating gist at ${filename}.`);
-        } else {
-          console.log(`Content didn't exist, creating gist at ${filename}.`);
+          return {};
         }
 
-        updateGist(request);
-      }
-    });
+        return response.json();
+      })
+      .then((oldGist) => {
+        let shouldUpdate = true;
+
+        if (oldGist?.body?.files?.[filename]) {
+          const oldContent = oldGist.body.files[filename].content;
+
+          if (oldContent === content) {
+            console.log(
+              `Content did not change, not updating gist at ${filename}.`
+            );
+            shouldUpdate = false;
+          }
+        }
+
+        if (shouldUpdate) {
+          if (oldGist?.body?.files?.[filename]) {
+            console.log(`Content changed, updating gist at ${filename}.`);
+          } else {
+            console.log(`Content didn't exist, creating gist at ${filename}.`);
+          }
+
+          updateGist(body);
+        }
+      });
   }
 } catch (error) {
   core.setFailed(error);
