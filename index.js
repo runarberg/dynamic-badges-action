@@ -4,7 +4,7 @@
 //                         Copyright: (c) 2020 Simon Schneegans                         //
 //////////////////////////////////////////////////////////////////////////////////////////
 
-import http from ":node/https";
+import http from "node:https";
 
 import core from "@actions/core";
 import { makeBadge } from "badge-maker";
