@@ -48,10 +48,16 @@ try {
   // and message attributes are always required. All others are optional and added to the
   // content object only if they are given to the action.
   let data = {
-    schemaVersion: 1,
     label: core.getInput("label"),
     message: core.getInput("message"),
   };
+
+  const filename = core.getInput("filename");
+  const isSvgFile = filename.endsWith(".svg");
+
+  if (!isSvgFile) {
+    data.schemaVersion = 1;
+  }
 
   // Compute the message color based on the given inputs.
   const color = core.getInput("color");
@@ -102,33 +108,32 @@ try {
   const logoPosition = core.getInput("logoPosition");
   const style = core.getInput("style");
   const cacheSeconds = core.getInput("cacheSeconds");
-  const filename = core.getInput("filename");
 
   if (labelColor != "") {
     data.labelColor = labelColor;
   }
 
-  if (isError != "") {
+  if (!isSvgFile && isError != "") {
     data.isError = isError;
   }
 
-  if (namedLogo != "") {
+  if (!isSvgFile && namedLogo != "") {
     data.namedLogo = namedLogo;
   }
 
-  if (logoSvg != "") {
+  if (!isSvgFile && logoSvg != "") {
     data.logoSvg = logoSvg;
   }
 
-  if (logoColor != "") {
+  if (!isSvgFile && logoColor != "") {
     data.logoColor = logoColor;
   }
 
-  if (logoWidth != "") {
+  if (!isSvgFile && logoWidth != "") {
     data.logoWidth = parseInt(logoWidth);
   }
 
-  if (logoPosition != "") {
+  if (!isSvgFile && logoPosition != "") {
     data.logoPosition = logoPosition;
   }
 
@@ -136,20 +141,14 @@ try {
     data.style = style;
   }
 
-  if (cacheSeconds != "") {
+  if (!isSvgFile && cacheSeconds != "") {
     data.cacheSeconds = parseInt(cacheSeconds);
   }
 
   let content = "";
 
-  if (filename.endsWith(".svg")) {
-    content = makeBadge({
-      color: data.color,
-      message: data.message,
-      label: data.label,
-      labelColor: data.labelColor,
-      style: data.style,
-    });
+  if (isSvgFile) {
+    content = makeBadge(data);
   } else {
     content = JSON.stringify({ content: data });
   }
