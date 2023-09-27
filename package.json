@@ -1,6 +1,6 @@
 {
   "name": "dynamic-badges-action",
-  "version": "2.0.0-beta.6",
+  "version": "2.0.0-beta.7",
   "description": "A GitHub Action which uses shields.io to create custom badges and uploads the to a gist.",
   "type": "module",
   "main": "index.js",
