@@ -29,11 +29,9 @@ async function updateGist(body) {
   });
 
   if (!response.ok) {
+    console.log(await response.text());
     core.setFailed(
-      "Failed to create gist, response status code: " +
-        res.statusCode +
-        ", status message: " +
-        res.statusMessage
+      `Failed to create gist, response status code: ${response.status} ${response.statusText}`
     );
 
     return;
