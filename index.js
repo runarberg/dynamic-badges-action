@@ -72,7 +72,6 @@ try {
   // and message attributes are always required. All others are optional and added to the
   // content object only if they are given to the action.
   let content = {
-    schemaVersion: 1,
     label: core.getInput("label"),
     message: core.getInput("message"),
   };
@@ -164,9 +163,14 @@ try {
     content.cacheSeconds = parseInt(cacheSeconds);
   }
 
-  const body = filename.endsWith(".svg")
-    ? makeBadge(content)
-    : JSON.stringify(content);
+  let body = "";
+
+  if (filename.endsWith(".svg")) {
+    body = makeBadge(content);
+  } else {
+    content.schemaVersion = 1;
+    body = JSON.stringify({ content });
+  }
 
   // For the POST request, the above content is set as file contents for the
   // given filename.
@@ -210,7 +214,7 @@ try {
       ) {
         const oldContent = oldGist.body.files[filename].content;
 
-        if (oldContent === JSON.stringify(content)) {
+        if (oldContent === body) {
           console.log(
             `Content did not change, not updating gist at ${filename}.`
           );
