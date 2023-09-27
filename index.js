@@ -23,7 +23,7 @@ function doRequest(options, data) {
 
       res.on("end", () => {
         const { statusCode, statusMessage } = res;
-        resolve({ statusCode, statusMessage, body: JSON.parse(responseBody) });
+        resolve({ statusCode, statusMessage, body: responseBody });
       });
     });
 
