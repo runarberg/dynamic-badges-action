@@ -14,10 +14,10 @@ const gistUrl = new URL(
 
 // This uses the method above to update a gist with the given data. The user agent is
 // required as defined in https://developer.github.com/v3/#user-agent-required
-async function updateGist(data) {
+async function updateGist(body) {
   const headers = new Headers([
     ["Content-Type", "application/json"],
-    ["Content-Length", data.length],
+    ["Content-Length", body.length],
     ["User-Agent", "runarberg"],
     ["Authorization", `token ${core.getInput("auth")}`],
   ]);
@@ -25,6 +25,7 @@ async function updateGist(data) {
   const response = await fetch(gistUrl, {
     method: "POST",
     headers,
+    body,
   });
 
   if (!response.ok) {
