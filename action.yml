@@ -72,5 +72,5 @@ inputs:
     description: 'Lightness used by the color range feature. Defaults to 40.'
     required: false
 runs:
-  using: 'node18'
+  using: 'node20'
   main: 'index.js'
